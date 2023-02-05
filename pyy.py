@@ -81,7 +81,7 @@ class Window:
       ),
       AnimationGroup(
         FadeIn(self._w_vg),
-        FadeIn(self._b_vgit@github.com:one-pyy/manim-for-TCP-protocol.gitg),
+        FadeIn(self._b_vg),
       ),
       lag_ratio=1, run_time=run_time
     )
