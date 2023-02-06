@@ -1,39 +1,23 @@
 from __future__ import annotations
-from manimlib import *
+from manim import *
 from typing import Optional
 from threading import Thread
 
 FONT = "FiraCode"
 scene: Scene = None # 很不幸, 由于动画组中的mobj不会更新, 所以似乎只能用全局变量把东西先画到画布上了
 
-# class END:
-#   @staticmethod
-#   def copy():
-#     pass
-
-# def monitor_lifecycle(obj: Mobject):
-#   scene.add(obj)
-#   def _monitor():
-#     data = obj.data
-#     if data.get("lifecycle", None):
-#       print("ok")
-#       scene.remove(obj)
-#     return obj.get_depth()
+def monitor_lifecycle(obj: Mobject):
+  scene.add(obj)
+  def _monitor():
+    opactiy = obj.get_opacity()
+    print(opactiy)
+    if opactiy==0:
+      print("ok")
+      scene.remove(obj)
+    return obj.get_depth()
   
-#   f_always(obj.set_max_depth, _monitor)
-#   return obj
-
-def cut(obj, sec):
-  return [obj[i:i+sec] for i in range(0,len(obj),sec)]
-
-class Subtitle:
-  def __init__(self, text: str = "", font=FONT, font_size=30, color=WHITE, position=[0, -3, 0], chars_per_line=20, t2c=None):
-    self.cpl = chars_per_line
-    if len(text) > chars_per_line-2:
-      text = "　　"+text
-      text.
-    self.text = Text(text, font=font, font_size=font_size, color=color, t2c=t2c)
-    self._gen_text()
+  f_always(obj.set_max_depth, _monitor)
+  return obj
 
 class Window:
   @classmethod
@@ -53,7 +37,7 @@ class Window:
   def _flush_window(self):
     completed = self._wl.index(False)
     distance = self.side_len*completed
-    return self._w_completed.animate.set_width(distance, True)
+    return self._w_completed.animate.set_width(distance)
   
   def set_completed(self, index):
     color, opacity = GREEN, 0.3
@@ -82,17 +66,18 @@ class Window:
     completed_color, active_color, pending_color, opacity = GREEN, YELLOW, GREY_E, 0.3
     side_len = self.side_len = self.w[0].get_height()
     
-    self._w_completed = Rectangle(0.001, side_len).set_stroke(width=0).set_fill(completed_color, opacity).align_to(self.w[0], UP+LEFT)
-    self._w_active = Rectangle(self._w_size, side_len).set_stroke(width=0).set_fill(active_color, opacity).align_to(self.w[0], UP)
-    self._w_pending = Rectangle(7, side_len).set_stroke(width=0).set_fill(pending_color, opacity).align_to(self.w[0], UP)
+    self._w_completed = Rectangle(WHITE, 0.001, side_len).set_stroke(width=0).set_fill(completed_color, opacity).align_to(self.w[0], UP+LEFT)
+    self._w_active = Rectangle(WHITE, self._w_size, side_len).set_stroke(width=0).set_fill(active_color, opacity).align_to(self.w[0], UP)
+    self._w_pending = Rectangle(WHITE, 7, side_len).set_stroke(width=0).set_fill(pending_color, opacity).align_to(self.w[0], UP)
     
     self._w_completed.add_updater(
       lambda m: m.align_to(self.w[0], LEFT))
     self._w_active.add_updater(
       lambda m: m.next_to(self._w_completed, RIGHT, buff=0))
     last_width = lambda: side_len*len(self.w) - self._w_completed.get_width() - self._w_active.get_width()
+    self._w_pending
     self._w_pending.add_updater(
-      lambda m: m.set_width(last_width(), True).next_to(self._w_active, RIGHT, buff=0))
+      lambda m: m.set_width(last_width()).next_to(self._w_active, RIGHT, buff=0))
     
     self._w_vg = VGroup(self._w_completed, self._w_active, self._w_pending) # window color
     self.vg.add(self._w_vg)
@@ -101,7 +86,7 @@ class Window:
   def _gen_brace(self):
     self._b_vg = VGroup()
     def get_brace(window: Rectangle, tag):
-      brace = always_redraw(BraceText, window, tag, UP, font_size=30, buff=0)
+      brace = always_redraw(lambda: BraceText(window, tag, Text, brace_direction=UP, font_size=30, buff=0))
       f_always(brace.set_opacity, lambda: window.get_width())
       
       self._b_vg.add(brace)
@@ -115,7 +100,7 @@ class Window:
   
   def r_shift(self, step=1):
     distance = self.side_len*step
-    return self._w_completed.animate.set_width(self._w_completed.get_width() + distance, True)
+    return self._w_completed.animate.set_width(self._w_completed.get_width() + distance)
   
   def create(self, run_time=3):
     return AnimationGroup(
@@ -153,14 +138,22 @@ class SlideWindow:
     rect: Rectangle = s.w[which].copy().set_fill(GREEN, opacity=0.3)
     if success:
       return AnimationGroup(
-        rect.animate.move_to(r.w[to_which]).set_opacity(0),
-        r.set_completed(to_which),
-        lag_ratio=0.3, run_time=run_time
+        rect.animate.move_to(r.w[to_which]),
+        AnimationGroup(
+          r.set_completed(to_which),
+          rect.animate.set_width(0)
+          # rect.animate.set_opacity(0),
+        ),
+        lag_ratio=1, run_time=run_time
       )
     else:
       return AnimationGroup(
-        rect.animate.move_to((s.w[which].get_center()+r.w[to_which].get_center())/2).set_fill(RED, 10).set_opacity(0),
-        run_time=run_time/2
+        AnimationGroup(
+          rect.animate.move_to(r.w[to_which]),
+          FadeOut(rect),
+          ApplyWave(rect)
+        ),
+        lag_ratio=1, run_time=run_time
       )
 
 
@@ -206,7 +199,7 @@ class T(Scene):
       Window.init(num=5, window_size=1, tag="接收方")
     )
     self.play(sw.create())
-    
+    self.play(sw.send(0, 0))
   
   
   # def 介绍滑动窗口(self):
