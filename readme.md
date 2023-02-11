@@ -2,4 +2,4 @@
 
 用了manim制作, 效果如下:
 
-<video src="T.mp4"></video>
+<video src="https://github.com/one-pyy/manim-for-TCP-protocol/blob/main/T.mp4"></video>
