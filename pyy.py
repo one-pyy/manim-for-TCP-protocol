@@ -8,7 +8,7 @@ import re
 
 FONT = "鍗庢枃妤蜂綋,STKaiti" # 华文楷体
 FONT_XK = "鍗庢枃琛屾シ,STXingkai" #华文行楷
-scene: Scene = None # 很不幸, 由于动画组中的mobj不会更新, 所以似乎只能用全局变量把东西先画到画布上了
+scene: 'T' = None # 很不幸, 由于动画组中的mobj不会更新, 所以似乎只能用全局变量把东西先画到画布上了
 
 def cut(obj, sec):
   return [obj[i: i+sec] for i in range(0, len(obj), sec)]
@@ -167,7 +167,6 @@ class Window:
     
     #会出现莫名奇妙的自动复制bug, 于是把显示层重新添加一下 FIXIT
     self._w_completed_copy = self._w_completed.copy().set_fill(completed_color, opacity).add_updater(lambda m: m.move_to(self._w_completed).set_width(self._w_completed.get_width(), True))
-    scene.add(self._w_completed_copy)
     
     self.updateing()
     
@@ -293,7 +292,25 @@ def get_lines(sentence: str, font = FONT, font_size = 36, color = None, stroke_w
 
 
 class T(Scene):
-  def play_one_by_one(self, *animations, run_time=2, wait=0):
+  def lower_than(self, obj, another_obj):
+    o_index = self.mobjects.index(obj)
+    ano_index = self.mobjects.index(another_obj)
+    if o_index > ano_index:
+      self.mobjects.remove(obj)
+      self.mobjects.insert(ano_index, obj)
+
+  def arrange_layer(self, *objs: Mobject):
+    positions = [self.mobjects.index(obj) for obj in objs]
+    positions = sorted(positions)
+    for index, position in enumerate(positions):
+      self.mobjects[position] = objs[index]
+  
+  def bottom_layer(self, *objs: Mobject):
+    for obj in objs:
+      self.mobjects.remove(obj)
+      self.mobjects.insert(1, obj)
+  
+  def play_one_by_one(self, *animations, run_time=3, wait=1):
     animations = list(a for a in animations if a)
     self.play(*animations, run_time=run_time)
     self.wait(wait)
@@ -321,8 +338,8 @@ class T(Scene):
     """, t2c={"TCP停等协议": RED, "发送方": BLUE, "接收方": BLUE, "确认": YELLOW, "报文": GREEN, "数据": GREEN})
     self.write_VGroup(introduction)
     
-    title = introduction[0][:7].copy()
-    self.play(title.animate.move_to([0, 3.3, 0]).set_color(WHITE).set_height(0.7), 
+    self.title = introduction[0][:7].copy()
+    self.play(self.title.animate.move_to([0, 3.3, 0]).set_color(WHITE).set_height(0.7), 
               FadeOut(introduction))
     
   def show_stop_wait_protocol(self):
@@ -357,12 +374,11 @@ class T(Scene):
       (st.w("总结:\n停等协议较为简单\n但对通信信道的利用率较低"), sw.send(4))
       (st.w("原因是:\n停等协议把大部分时间都用于\n数据在链路上的传输\n而不是数据的发送与接收"), sw.send(4, rev=True))
     )
-    self.play(FadeOut(sw.vg), st.clear(), run_time=5)
+    self.play(FadeOut(sw.vg), st.clear(), FadeOut(self.title), run_time=5)
     self.clear()
   
   
   def introduce_sliding_window(self):
-    
     vg = get_lines('''
       为了充分利用通信信道的带宽
       我们需要将更多的时间用在数据的收发上
@@ -372,8 +388,8 @@ class T(Scene):
     ''', t2c={"带宽": BLUE, "收发": BLUE, "多个数据包": BLUE, "确认": BLUE, "滑动窗口协议": GOLD})
     self.write_VGroup(vg)
     self.wait()
-    self.title = title = vg[2][7:13].copy()
-    self.play(FadeOut(vg), title.animate.move_to([0, 3.3, 0]).set_color(WHITE).set_height(0.7))
+    self.title = vg[2][7:13].copy()
+    self.play(FadeOut(vg), self.title.animate.move_to([0, 3.3, 0]).set_color(WHITE).set_height(0.7))
     self.show('''
       当接收方收到不是当时期望的数据包时
       接收方会直接丢弃该数据包
@@ -442,10 +458,12 @@ class T(Scene):
     )
     title = st.text[13:15].copy()
     title.generate_target().move_to([-0.75, 3.3, 0]).set_color(WHITE).set_height(0.7)
-    title2 = Text("控制", font=FONT, height=0.7).next_to(title.target, RIGHT, buff=0.1)
+    title2 = Text("控制", font=FONT, height=0.7)
     self.play(FadeOut(self.title))
+    self.title = VGroup(title, title2).arrange(RIGHT, buff=0.1)
     
-    self.play(FadeOut(sw.vg), st.clear(), MoveToTarget(title), FadeIn(title2))
+    self.play(FadeOut(sw.vg), st.clear(), MoveToTarget(title))
+    self.play(FadeIn(title2))
     self.show('''
       在数据传输开始时
       发送方会以较慢的速率发送数据, 以先测试网络的能力
@@ -515,3 +533,4 @@ class T(Scene):
     self.show_sliding_window_0()
     self.show_sliding_window_1()
     self.show_sliding_window_2()
+    self.embed()
